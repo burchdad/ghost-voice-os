@@ -12,6 +12,7 @@ from core.call_session import CallSession, CallState, get_session_store
 from core.conversation_engine import get_conversation_engine
 from core.persistence import get_call_persistence
 from providers.twilio_client import get_twilio_client
+from providers.stt.whisper_client import get_stt_client
 from security.webhook_verification import get_webhook_verifier
 import os
 
@@ -269,7 +270,7 @@ async def twilio_recording(
 ):
     """
     Handle recording callback from Twilio
-    Stores recording metadata in session
+    Stores recording metadata and triggers STT transcription
     """
     try:
         logger.info(f"📞 [RECORDING] Recording received for {CallSid}")
@@ -286,7 +287,36 @@ async def twilio_recording(
         
         await session_store.store(session)
         
+        # Persist recording event
+        persistence = get_call_persistence()
+        await persistence.log_event(session, "recording_available", {
+            "recording_url": RecordingUrl,
+            "recording_duration": session.get_duration(),
+        })
+        
         logger.info(f"✅ [RECORDING] Recording stored: {RecordingUrl}")
+        
+        # Trigger STT transcription for the recording
+        if RecordingUrl:
+            try:
+                logger.info(f"🎤 [STT] Submitting recording for transcription: {RecordingUrl[:50]}...")
+                stt_client = get_stt_client()
+                
+                job_result = await stt_client.transcribe_from_url(
+                    session=session,
+                    audio_url=RecordingUrl,
+                    callback_url=os.getenv("VOICE_OS_BASE_URL", "http://localhost:8000") + "/v1/webhooks/stt/callback",
+                    language=session.voice_config.get("language", "en")
+                )
+                
+                logger.info(f"✅ [STT] Transcription job queued: {job_result.get('job_id')}")
+                
+                await persistence.log_event(session, "transcription_submitted", {
+                    "job_id": job_result.get("job_id"),
+                    "recording_url": RecordingUrl,
+                })
+            except Exception as e:
+                logger.warning(f"⚠️  [STT] Failed to submit recording for transcription: {e}")
         
         return {"status": "ok"}
         

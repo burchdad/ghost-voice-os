@@ -44,7 +44,8 @@ class CallPersistence:
         self,
         session: CallSession,
         speaker: str,
-        text: str
+        text: str,
+        metadata: Optional[dict] = None
     ) -> bool:
         """
         Persist transcript entry
@@ -53,6 +54,7 @@ class CallPersistence:
             session: Call session
             speaker: Speaker (ai or caller)
             text: Transcript text
+            metadata: Optional metadata dict (segments, confidence, etc.)
             
         Returns:
             True if successful
@@ -63,7 +65,8 @@ class CallPersistence:
                 session=session,
                 speaker=speaker,
                 text=text,
-                timestamp=datetime.utcnow().isoformat()
+                timestamp=datetime.utcnow().isoformat(),
+                metadata=metadata
             )
             return True
         except Exception as e:

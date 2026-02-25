@@ -8,7 +8,35 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    depends_on:
+      - redis
+      - opensearch
+      - voice-stt-whisper
+    environment:
+      - STT_SERVICE_URL=http://voice-stt-whisper:8001
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  voice-stt-whisper:
+    build:
+      context: ./services/voice-stt-whisper
+    container_name: ghost-voice-stt
+    ports:
+      - "8001:8001"
+    environment:
+      - WHISPER_MODEL_SIZE=base
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   redis:
     image: redis:7
@@ -16,6 +44,11 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   opensearch:
     image: opensearchproject/opensearch:2.11.0
@@ -27,3 +60,9 @@ services:
     ports:
       - "9200:9200"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

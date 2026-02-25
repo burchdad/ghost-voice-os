@@ -12,6 +12,7 @@ from core.call_session import CallSession, CallState, get_session_store
 from core.conversation_engine import get_conversation_engine
 from core.persistence import get_call_persistence
 from providers.telnyx_client import get_telnyx_client
+from providers.stt.whisper_client import get_stt_client
 from security.webhook_verification import get_webhook_verifier
 import os
 
@@ -283,6 +284,31 @@ async def handle_call_hangup(session: CallSession, event_data: Dict[str, Any]):
             "recording_url": session.recording_url,
             "timestamp": event_data.get("occurred_at")
         })
+        
+        # Trigger STT transcription if we have a recording
+        if session.recording_url:
+            try:
+                logger.info(f"🎤 [STT] Submitting recording for transcription: {session.recording_url[:50]}...")
+                stt_client = get_stt_client()
+                
+                # Submit recording for async transcription
+                job_result = await stt_client.transcribe_from_url(
+                    session=session,
+                    audio_url=session.recording_url,
+                    callback_url=os.getenv("VOICE_OS_BASE_URL", "http://localhost:8000") + "/v1/webhooks/stt/callback",
+                    language=session.voice_config.get("language", "en")
+                )
+                
+                logger.info(f"✅ [STT] Transcription job queued: {job_result.get('job_id')}")
+                
+                # Log job submission
+                await persistence.log_event(session, "transcription_submitted", {
+                    "job_id": job_result.get("job_id"),
+                    "recording_url": session.recording_url,
+                })
+            except Exception as e:
+                logger.warning(f"⚠️  [STT] Failed to submit recording for transcription: {e}")
+                # Don't fail the call hangup due to STT error
         
     except Exception as e:
         logger.error(f"❌ [EVENT] Error in hangup handler: {e}")

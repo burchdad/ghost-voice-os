@@ -161,7 +161,8 @@ class OpenSearchClient:
         speaker: str,
         text: str,
         timestamp: str,
-        turn: int
+        turn: int,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
         Index a transcript entry
@@ -174,6 +175,7 @@ class OpenSearchClient:
             text: Transcript text
             timestamp: ISO timestamp
             turn: Conversation turn number
+            metadata: Optional metadata dict (segments, confidence, etc.)
             
         Returns:
             True if successful
@@ -188,6 +190,10 @@ class OpenSearchClient:
                 "timestamp": timestamp,
                 "turn": turn
             }
+            
+            # Add optional metadata
+            if metadata:
+                doc.update(metadata)
             
             self.client.index(
                 index="transcripts",

@@ -14,7 +14,7 @@ from typing import Optional, Dict, Any
 
 from core.tenant_loader import load_tenant, list_available_tenants
 from providers.tts.elevenlabs import get_elevenlabs_provider
-from routes import calls, telnyx, twilio
+from routes import calls, telnyx, twilio, stt
 
 # Configure logging
 logging.basicConfig(
@@ -43,6 +43,7 @@ app.add_middleware(
 app.include_router(calls.router)
 app.include_router(telnyx.router)
 app.include_router(twilio.router)
+app.include_router(stt.router)
 
 
 # ============================================================================

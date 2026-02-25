@@ -4,7 +4,7 @@ Persistent storage and retrieval of call transcripts with full-text search
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from core.storage import get_opensearch_client
 from core.call_session import CallSession
 
@@ -23,7 +23,8 @@ class TranscriptStore:
         session: CallSession,
         speaker: str,
         text: str,
-        timestamp: str
+        timestamp: str,
+        metadata: Optional[Dict[Any, Any]] = None
     ) -> bool:
         """
         Add transcript entry to storage
@@ -33,6 +34,7 @@ class TranscriptStore:
             speaker: Speaker (ai or caller)
             text: Transcript text
             timestamp: ISO timestamp
+            metadata: Optional metadata dict (segments, confidence, etc.)
             
         Returns:
             True if successful
@@ -45,7 +47,8 @@ class TranscriptStore:
                 speaker=speaker,
                 text=text,
                 timestamp=timestamp,
-                turn=session.turn_count
+                turn=session.turn_count,
+                metadata=metadata
             )
             return True
         except Exception as e:
