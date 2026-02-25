@@ -161,6 +161,18 @@ class CallSession:
         """Move to next conversation turn"""
         self.turn_count += 1
 
+    def get_duration(self) -> int:
+        """Get call duration in seconds"""
+        if not self.ended_at:
+            # Call is still ongoing
+            start = datetime.fromisoformat(self.created_at)
+            return int((datetime.utcnow() - start).total_seconds())
+        else:
+            # Call has ended
+            start = datetime.fromisoformat(self.created_at)
+            end = datetime.fromisoformat(self.ended_at)
+            return int((end - start).total_seconds())
+
 
 class RedisCallSessionStore:
     """Redis-backed store for call sessions"""

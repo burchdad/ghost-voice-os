@@ -10,6 +10,7 @@ from fastapi.responses import Response
 from urllib.parse import parse_qs
 from core.call_session import CallSession, CallState, get_session_store
 from core.conversation_engine import get_conversation_engine
+from core.persistence import get_call_persistence
 from providers.twilio_client import get_twilio_client
 from security.webhook_verification import get_webhook_verifier
 import os
@@ -67,6 +68,10 @@ async def twilio_answer(
         session.advance_state(CallState.ANSWERED)
         session.add_event("call_answered", {"CallSid": CallSid})
         
+        # Persist call answered event
+        persistence = get_call_persistence()
+        await persistence.log_event(session, "call_answered", {"CallSid": CallSid})
+        
         # Generate greeting
         engine = get_conversation_engine()
         response_text, audio_url = await engine.generate_response(
@@ -76,6 +81,10 @@ async def twilio_answer(
         
         session.add_transcript_entry("ai", response_text)
         session.increment_turn()
+        
+        # Persist transcript and session
+        await persistence.persist_transcript(session, "ai", response_text)
+        await persistence.persist_call_session(session)
         
         await session_store.store(session)
         
@@ -123,6 +132,13 @@ async def twilio_gather(
         
         session.add_event("dtmf_received", {"digits": Digits})
         
+        # Persist DTMF event
+        persistence = get_call_persistence()
+        await persistence.log_event(session, "dtmf_received", {
+            "digits": Digits,
+            "timestamp": session.updated_at
+        })
+        
         # Handle DTMF
         engine = get_conversation_engine()
         response_text, audio_url = await engine.handle_dtmf_input(session, Digits)
@@ -131,10 +147,24 @@ async def twilio_gather(
         session.add_transcript_entry("ai", response_text)
         session.increment_turn()
         
+        # Persist transcript entries
+        await persistence.persist_transcript(session, "caller", f"[DTMF: {Digits}]")
+        await persistence.persist_transcript(session, "ai", response_text)
+        
         # Check if we should continue or end
         if session.turn_count >= session.ai_config.get("max_turns", 10):
             # Max turns reached, end call
             closing_msg = await engine.end_call(session, "completed")
+            session.advance_state(CallState.ENDED)
+            session.ended_at = session.updated_at
+            
+            # Persist final call state
+            await persistence.persist_call_session(session)
+            await persistence.log_event(session, "call_ended", {
+                "reason": "max_turns_reached",
+                "duration_seconds": session.get_duration()
+            })
+            
             await session_store.store(session)
             
             twiml = f'<Response><Say>{closing_msg}</Say><Hangup/></Response>'
@@ -202,6 +232,23 @@ async def twilio_status(
         if new_state:
             session.advance_state(new_state)
             session.add_event("status_change", {"twilio_status": CallStatus})
+            
+            # Persist state change and events
+            persistence = get_call_persistence()
+            await persistence.log_event(session, "status_change", {
+                "twilio_status": CallStatus,
+                "timestamp": session.updated_at
+            })
+            
+            # If call ended, persist final state
+            if new_state == CallState.ENDED:
+                session.ended_at = session.updated_at
+                await persistence.persist_call_session(session)
+                await persistence.log_event(session, "call_ended", {
+                    "reason": CallStatus,
+                    "duration_seconds": session.get_duration(),
+                    "timestamp": session.updated_at
+                })
         
         await session_store.store(session)
         

@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional
 from fastapi import APIRouter, Request, Header, HTTPException
 from core.call_session import CallSession, CallState, get_session_store
 from core.conversation_engine import get_conversation_engine
+from core.persistence import get_call_persistence
 from providers.telnyx_client import get_telnyx_client
 from security.webhook_verification import get_webhook_verifier
 import os
@@ -125,6 +126,10 @@ async def handle_call_answered(session: CallSession, event_data: Dict[str, Any])
         session.advance_state(CallState.ANSWERED)
         session.add_event("call_answered", event_data)
         
+        # Persist event to OpenSearch
+        persistence = get_call_persistence()
+        await persistence.log_event(session, "call_answered", event_data)
+        
         # Generate initial greeting
         engine = get_conversation_engine()
         response_text, audio_url = await engine.generate_response(
@@ -133,6 +138,9 @@ async def handle_call_answered(session: CallSession, event_data: Dict[str, Any])
         )
         
         session.add_transcript_entry("ai", response_text)
+        
+        # Persist transcript entry
+        await persistence.persist_transcript(session, "ai", response_text)
         
         # Send audio to call
         client = get_telnyx_client()
@@ -145,6 +153,9 @@ async def handle_call_answered(session: CallSession, event_data: Dict[str, Any])
         
         session_store = get_session_store()
         await session_store.store(session)
+        
+        # Persist session state
+        await persistence.persist_call_session(session)
         
     except Exception as e:
         logger.error(f"❌ [EVENT] Error in answered handler: {e}")
@@ -159,6 +170,13 @@ async def handle_machine_detection(session: CallSession, event_data: Dict[str, A
         session.add_event("machine_detection", {
             "result": detection_result,
             "raw": event_data
+        })
+        
+        # Persist machine detection event
+        persistence = get_call_persistence()
+        await persistence.log_event(session, "machine_detection", {
+            "result": detection_result,
+            "timestamp": event_data.get("occurred_at")
         })
         
         if detection_result == "answered_human":
@@ -205,12 +223,23 @@ async def handle_dtmf_received(session: CallSession, event_data: Dict[str, Any])
         
         session.add_event("dtmf_received", {"digits": digits})
         
+        # Persist DTMF event
+        persistence = get_call_persistence()
+        await persistence.log_event(session, "dtmf_received", {
+            "digits": digits,
+            "timestamp": event_data.get("occurred_at")
+        })
+        
         # Handle DTMF input
         engine = get_conversation_engine()
         response_text, audio_url = await engine.handle_dtmf_input(session, digits)
         
         session.add_transcript_entry("caller", f"[DTMF: {digits}]")
         session.add_transcript_entry("ai", response_text)
+        
+        # Persist transcript entries
+        await persistence.persist_transcript(session, "caller", f"[DTMF: {digits}]")
+        await persistence.persist_transcript(session, "ai", response_text)
         
         # Send response
         client = get_telnyx_client()
@@ -245,6 +274,16 @@ async def handle_call_hangup(session: CallSession, event_data: Dict[str, Any]):
         session_store = get_session_store()
         await session_store.store(session)
         
+        # Persist final call state to OpenSearch for permanent record
+        persistence = get_call_persistence()
+        await persistence.persist_call_session(session)
+        await persistence.log_event(session, "call_ended", {
+            "reason": reason,
+            "duration_seconds": session.get_duration(),
+            "recording_url": session.recording_url,
+            "timestamp": event_data.get("occurred_at")
+        })
+        
     except Exception as e:
         logger.error(f"❌ [EVENT] Error in hangup handler: {e}")
 
@@ -261,6 +300,14 @@ async def handle_call_failed(session: CallSession, event_data: Dict[str, Any]):
         
         session_store = get_session_store()
         await session_store.store(session)
+        
+        # Persist failed call state for debugging and analytics
+        persistence = get_call_persistence()
+        await persistence.persist_call_session(session)
+        await persistence.log_event(session, "call_failed", {
+            "error": error_message,
+            "timestamp": event_data.get("occurred_at")
+        })
         
     except Exception as e:
         logger.error(f"❌ [EVENT] Error in failed handler: {e}")
