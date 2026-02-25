@@ -3,6 +3,7 @@ uvicorn==0.24.0
 httpx==0.25.0
 pydantic==2.5.0
 python-dotenv==1.0.0
+python-multipart==0.0.9
 
 # Speech-to-Text (commented out to avoid build dependency issues)
 # openai-whisper==20231117
