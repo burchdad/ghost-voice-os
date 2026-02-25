@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voice-api
+  namespace: ghost-voice-os
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: voice-api
+  template:
+    metadata:
+      labels:
+        app: voice-api
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - voice-api
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: voice-api
+          image: ghost-voice-os:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: VOICE_OS_HOST
+              value: "0.0.0.0"
+            - name: VOICE_OS_PORT
+              value: "8000"
+            - name: REDIS_URL
+              value: "redis://redis:6379"
+            - name: POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: voice-os-credentials
+                  key: postgres-url
+            - name: OPENSEARCH_URL
+              value: "http://opensearch:9200"
+            - name: ELEVENLABS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: voice-os-credentials
+                  key: elevenlabs-api-key
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+          volumeMounts:
+            - name: tenants
+              mountPath: /app/tenants
+
+      volumes:
+        - name: tenants
+          configMap:
+            name: voice-os-tenants
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: voice-api
+  namespace: ghost-voice-os
+spec:
+  selector:
+    app: voice-api
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: LoadBalancer
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: voice-api-hpa
+  namespace: ghost-voice-os
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: voice-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

@@ -1,0 +1,114 @@
+version: '3.9'
+
+services:
+  voice-api:
+    image: ghost-voice-os:latest
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      placement:
+        constraints:
+          - node.labels.type != mac  # Run Linux API on Linux nodes
+    ports:
+      - "8000:8000"
+    environment:
+      - VOICE_OS_HOST=0.0.0.0
+      - VOICE_OS_PORT=8000
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_URL=postgresql://postgres:password@postgres:5432/voiceos
+      - OPENSEARCH_URL=http://opensearch:9200
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TELNYX_API_KEY=${TELNYX_API_KEY}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+    volumes:
+      - voice-tenants:/app/tenants
+    networks:
+      - ghost-network
+    depends_on:
+      - redis
+      - postgres
+      - opensearch
+
+  voice-stt-apple:
+    image: ghost-voice-os-apple-stt:latest
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.labels.type == mac  # Run Apple STT only on Mac nodes
+      restart_policy:
+        condition: on-failure
+    environment:
+      - STT_PORT=8001
+    ports:
+      - "8001:8001"
+    networks:
+      - ghost-network
+
+  redis:
+    image: redis:7-alpine
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+    volumes:
+      - redis-data:/data
+    networks:
+      - ghost-network
+    command: redis-server --appendonly yes
+
+  postgres:
+    image: postgres:15-alpine
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=voiceos
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - ghost-network
+
+  opensearch:
+    image: opensearchproject/opensearch:latest
+    deploy:
+      replicas: 3
+      placement:
+        constraints:
+          - node.labels.storage == true
+    environment:
+      - discovery.seed_hosts=opensearch
+      - cluster.initial_master_nodes=opensearch
+      - DISABLE_SECURITY_PLUGIN=true
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    networks:
+      - ghost-network
+
+volumes:
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local
+  opensearch-data:
+    driver: local
+  voice-tenants:
+    driver: local
+
+networks:
+  ghost-network:
+    driver: overlay
+    attachable: true

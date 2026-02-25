@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ghost-voice-os"
+version = "1.0.0"
+description = "Production-grade voice AI platform with multi-tenant support"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Ghost Voice OS Team", email = "team@ghost-voice-os.com"}
+]
+
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.0.0",
+    "httpx[http2]>=0.25.0",
+    "redis>=5.0.0",
+    "psycopg2-binary>=2.9.0",
+    "sqlalchemy>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "python-multipart>=0.0.6",
+    "pyttsx3>=2.90",
+    "whisper",
+    "openai>=1.0.0",
+]
+
+[project.optional-dependencies]
+apple = [
+    "speech-recognition>=3.10.0",
+]
+llm = [
+    "llama-cpp-python>=0.2.0",
+    "mlx-lm>=0.5.0",
+]
+providers = [
+    "azure-cognitiveservices-speech>=1.31.0",
+    "deepgram-sdk>=3.0.0",
+    "twilio>=8.10.0",
+    "telnyx>=2.10.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.1.0",
+    "mypy>=1.7.0",
+]
+docs = [
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=2.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ghost-voice-os/ghost-voice-os"
+Documentation = "https://docs.ghost-voice-os.com"
+Repository = "https://github.com/ghost-voice-os/ghost-voice-os.git"
+Issues = "https://github.com/ghost-voice-os/ghost-voice-os/issues"
+
+[tool.setuptools]
+packages = ["services.voice_api"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

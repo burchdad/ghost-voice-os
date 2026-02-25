@@ -1,0 +1,35 @@
+{
+  "tenant_id": "ghostcrm",
+  "name": "Ghost CRM",
+  "branding": {
+    "product_name": "Ghost Voice OS",
+    "assistant_name": "Aria",
+    "accent_color": "#00E5FF",
+    "logo_url": "https://ghostcrm.ai/logo.png"
+  },
+  "providers": {
+    "telephony": "telnyx",
+    "stt": "browser",
+    "tts": "elevenlabs",
+    "llm": "openai"
+  },
+  "config": {
+    "base_url": "https://ghostcrm.ai",
+    "webhook_secret": "set_in_env",
+    "api_key": "set_in_env",
+    "max_call_duration": 3600,
+    "recording_enabled": true
+  },
+  "features": {
+    "voice_cloning": true,
+    "persona_switching": true,
+    "sentiment_analysis": true,
+    "call_recording": true,
+    "transcription": true
+  },
+  "quotas": {
+    "calls_per_month": 100000,
+    "custom_voices": 5,
+    "api_requests_per_second": 100
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "tenant_id": "default",
+  "name": "Default Tenant",
+  "branding": {
+    "product_name": "Voice OS Platform",
+    "assistant_name": "Assistant",
+    "accent_color": "#7c3aed"
+  },
+  "providers": {
+    "telephony": "telnyx",
+    "stt": "browser",
+    "tts": "elevenlabs",
+    "llm": "openai"
+  },
+  "config": {
+    "base_url": "http://localhost:3000",
+    "api_key": "set_in_env",
+    "max_call_duration": 1800
+  },
+  "features": {
+    "voice_cloning": true,
+    "persona_switching": true
+  },
+  "quotas": {
+    "calls_per_month": 10000,
+    "custom_voices": 2
+  }
+}
