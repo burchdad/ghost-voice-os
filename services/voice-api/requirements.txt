@@ -3,3 +3,22 @@ uvicorn==0.24.0
 httpx==0.25.0
 pydantic==2.5.0
 python-dotenv==1.0.0
+
+# Speech-to-Text (commented out to avoid build dependency issues)
+# openai-whisper==20231117
+
+# Text-to-Speech
+elevenlabs==0.2.25
+
+# Telephony Providers
+twilio==8.10.0
+telnyx==4.48.0
+
+# Storage & Caching
+redis==5.0.1
+
+# LLM Providers
+openai==1.3.9
+
+# API Security & Verification
+cryptography==41.0.7

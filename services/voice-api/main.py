@@ -14,6 +14,7 @@ from typing import Optional, Dict, Any
 
 from core.tenant_loader import load_tenant, list_available_tenants
 from providers.tts.elevenlabs import get_elevenlabs_provider
+from routes import calls, telnyx, twilio
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +38,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register routers
+app.include_router(calls.router)
+app.include_router(telnyx.router)
+app.include_router(twilio.router)
 
 
 # ============================================================================
@@ -233,42 +239,17 @@ async def upload_voice(
     }
 
 
-# ============================================================================
-# Call Management Endpoints (Placeholder)
-# ============================================================================
-
-@app.post("/v1/calls/initiate")
-async def initiate_call(
-    request: dict,
-    x_tenant_id: str = Header(default="default")
-):
-    """
-    Initiate an AI call
-    Placeholder - full implementation in next phase
-    """
-    return {
-        "status": "ok",
-        "message": "Call initiation not yet implemented",
-        "tenant_id": x_tenant_id
-    }
 
 
 # ============================================================================
-# Webhook Endpoints (Placeholder)
+# Call Management Endpoints
 # ============================================================================
+# Handled by routes/calls.py router (registered above)
 
-@app.post("/v1/webhooks/telnyx")
-async def telnyx_webhook(request: dict):
-    """Handle Telnyx webhook events"""
-    logger.info(f"📞 [WEBHOOK] Telnyx event received")
-    return {"status": "ok"}
-
-
-@app.post("/v1/webhooks/twilio")
-async def twilio_webhook(request: dict):
-    """Handle Twilio webhook events"""
-    logger.info(f"📞 [WEBHOOK] Twilio event received")
-    return {"status": "ok"}
+# ============================================================================
+# Webhook Endpoints
+# ============================================================================
+# Handled by routes/telnyx.py and routes/twilio.py routers (registered above)
 
 
 # ============================================================================
