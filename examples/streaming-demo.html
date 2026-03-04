@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost Voice OS - Streaming Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .status-box {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .status-label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .status-value {
+            color: #333;
+        }
+        
+        .status-value.active {
+            color: #4caf50;
+            font-weight: bold;
+        }
+        
+        .status-value.error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            grid-column: span 2;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #d0d0d0;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .output-section h3 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #667eea;
+        }
+        
+        .transcript-box, .audio-status {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        
+        .transcript-interim {
+            color: #999;
+            font-style: italic;
+        }
+        
+        .transcript-final {
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        
+        .error-box {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            border-radius: 4px;
+            color: #c62828;
+            font-size: 13px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .error-box.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ Ghost Voice OS</h1>
+        <p class="subtitle">Real-time Streaming Voice AI</p>
+        
+        <div class="status-box">
+            <div class="status-item">
+                <span class="status-label">Connection:</span>
+                <span class="status-value" id="connectionStatus">Disconnected</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Recording:</span>
+                <span class="status-value" id="recordingStatus">Stopped</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Latency:</span>
+                <span class="status-value" id="latency">— ms</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-primary" id="startBtn" onclick="startCall()">
+                🟢 Start Call
+            </button>
+            <button class="btn-secondary" id="stopBtn" onclick="stopCall()" disabled>
+                Stop
+            </button>
+            <button class="btn-secondary" id="pauseBtn" onclick="togglePause()" disabled>
+                Pause
+            </button>
+        </div>
+        
+        <div class="error-box" id="errorBox"></div>
+        
+        <div class="output-section">
+            <h3>📝 Transcript</h3>
+            <div class="transcript-box">
+                <div id="transcript" class="transcript-interim">Waiting for input...</div>
+            </div>
+        </div>
+        
+        <div class="output-section">
+            <h3>🎵 Audio Status</h3>
+            <div class="audio-status">
+                <div id="audioLog">No audio yet</div>
+            </div>
+        </div>
+        
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-value" id="audioChunks">0</div>
+                <div class="metric-label">Audio Chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="duration">0.0s</div>
+                <div class="metric-label">Duration</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="confidence">—%</div>
+                <div class="metric-label">Confidence</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="messages">0</div>
+                <div class="metric-label">Messages</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Note: In a real app, this would import the streaming client
+        // import StreamingVoiceClient from '@ghost-voice/streaming-client';
+        
+        // For demo, we'll simulate the API
+        let client = null;
+        let startTime = null;
+        let metrics = {
+            audioChunks: 0,
+            messageCount: 0,
+            confidence: 0,
+        };
+
+        async function startCall() {
+            try {
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('errorBox').classList.remove('show');
+                
+                console.log('🔌 Connecting to streaming server...');
+                updateStatus('connection', 'Connecting...');
+                
+                // Simulate connection (replace with actual client when available)
+                setTimeout(() => {
+                    mockClientConnect();
+                }, 500);
+                
+            } catch (error) {
+                showError('Failed to start call: ' + error.message);
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        async function stopCall() {
+            try {
+                if (client) {
+                    await client.stop?.();
+                }
+                updateStatus('connection', 'Disconnected');
+                updateStatus('recording', 'Stopped');
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = true;
+                document.getElementById('startBtn').disabled = false;
+                
+                console.log('📞 Call ended');
+            } catch (error) {
+                showError('Error stopping call: ' + error.message);
+            }
+        }
+
+        function togglePause() {
+            // Placeholder for pause functionality
+            console.log('Pause clicked');
+        }
+
+        function updateStatus(type, value) {
+            const map = {
+                'connection': 'connectionStatus',
+                'recording': 'recordingStatus',
+            };
+            const el = document.getElementById(map[type]);
+            if (el) {
+                el.textContent = value;
+                el.className = 'status-value';
+                if (value === 'Connected' || value === 'Recording') {
+                    el.classList.add('active');
+                }
+            }
+        }
+
+        function updateTranscript(text, isFinal) {
+            const transcriptEl = document.getElementById('transcript');
+            if (isFinal) {
+                transcriptEl.innerHTML = `<span class="transcript-final">${escapeHtml(text)}</span>`;
+            } else {
+                transcriptEl.innerHTML = `<span class="transcript-interim">${escapeHtml(text)}</span>`;
+            }
+        }
+
+        function updateAudioLog(message) {
+            const logEl = document.getElementById('audioLog');
+            logEl.innerHTML = message;
+            metrics.audioChunks++;
+            document.getElementById('audioChunks').textContent = metrics.audioChunks;
+        }
+
+        function updateMetrics(data) {
+            if (data.confidence) {
+                metrics.confidence = Math.round(data.confidence * 100);
+                document.getElementById('confidence').textContent = metrics.confidence + '%';
+            }
+            
+            metrics.messageCount++;
+            document.getElementById('messages').textContent = metrics.messageCount;
+            
+            if (startTime) {
+                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                document.getElementById('duration').textContent = duration + 's';
+            }
+        }
+
+        function showError(message) {
+            const errorBox = document.getElementById('errorBox');
+            errorBox.textContent = '❌ ' + message;
+            errorBox.classList.add('show');
+            console.error(message);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Mock client for demo
+        function mockClientConnect() {
+            startTime = Date.now();
+            updateStatus('connection', 'Connected');
+            updateStatus('recording', 'Recording');
+            
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = false;
+            
+            // Simulate streamed responses
+            const simulationData = [
+                { type: 'transcript', text: 'hello', isFinal: false, confidence: 0.85 },
+                { type: 'audio', chunks: 1 },
+                { type: 'transcript', text: 'hello there', isFinal: true, confidence: 0.95 },
+                { type: 'audio', chunks: 2 },
+                { type: 'transcript', text: 'how can i', isFinal: false, confidence: 0.88 },
+                { type: 'audio', chunks: 3 },
+            ];
+            
+            let index = 0;
+            const interval = setInterval(() => {
+                if (index >= simulationData.length || !startTime) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                const data = simulationData[index];
+                
+                if (data.type === 'transcript') {
+                    updateTranscript(data.text, data.isFinal);
+                    updateMetrics({ confidence: data.confidence });
+                } else if (data.type === 'audio') {
+                    updateAudioLog(`📤 Got ${10 * data.chunks}ms of audio`);
+                }
+                
+                index++;
+            }, 400);
+        }
+
+        // Export for use
+        window.startCall = startCall;
+        window.stopCall = stopCall;
+        window.togglePause = togglePause;
+    </script>
+</body>
+</html>

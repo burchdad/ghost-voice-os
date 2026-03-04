@@ -5,11 +5,24 @@ pydantic==2.5.0
 python-dotenv==1.0.0
 python-multipart==0.0.9
 
-# Speech-to-Text (commented out to avoid build dependency issues)
-# openai-whisper==20231117
+# Streaming Speech-to-Text
+deepgram-sdk==3.0.0
+# openai-whisper==20231117  # Optional, for local streaming STT
 
 # Text-to-Speech
 elevenlabs==0.2.25
+
+# Local TTS (in-house voice cloning competitor)
+# Using transformers + espeak for XTTS v2-like functionality
+transformers==4.38.0
+torch==2.1.0
+torchaudio==2.1.0
+numpy==1.24.0
+scipy==1.11.0
+librosa==0.10.0
+inflect==7.0.0
+unidecode==1.3.0
+g2p-en==2.1.0
 
 # Telephony Providers
 twilio==8.10.0
@@ -21,6 +34,10 @@ opensearch-py==2.3.1
 
 # LLM Providers
 openai==1.3.9
+
+# WebRTC/RTP Support (optional)
+aiortc==1.5.0
+av==10.0.0
 
 # API Security & Verification
 cryptography==41.0.7
